@@ -7,7 +7,7 @@ from ._roms import rom_path
 
 
 # create a dictionary mapping value of status register to string names
-_STATUS_MAP = defaultdict(lambda: 'fireball', {0:'small', 1: 'tall'})
+# _STATUS_MAP = defaultdict(lambda: 'fireball', {0:'small', 1: 'tall'})
 
 
 # a set of state values indicating that Mario is "busy"
@@ -126,12 +126,6 @@ class AdventureIslandEnv(NESEnv):
         # return self._read_mem_range(0x07f8, 3)
         return self.ram[0x07D3]
 
-    # @property
-    # def _coins(self):
-    #     """Return the number of coins collected (0 to 99)."""
-    #     # coins are represented as a figure with 2 10's places
-    #     return self._read_mem_range(0x07ed, 2)
-
     @property
     def _life(self):
         """Return the number of remaining lives."""
@@ -141,13 +135,21 @@ class AdventureIslandEnv(NESEnv):
     def _x_position(self):
         """Return the current horizontal position."""
         # add the current page 0x6d to the current x
-        return self.ram[0x6d] * 0x100 + self.ram[0x86]
+        # return self.ram[0x6d] * 0x100 + self.ram[0x86]
+        return self.ram[0x401]
 
     @property
-    def _left_x_position(self):
-        """Return the number of pixels from the left of the screen."""
-        # subtract the left x position 0x071c from the current x 0x86
-        return (self.ram[0x86] - self.ram[0x071c]) % 256
+    def _direction(self):
+        """Return the current horizontal position."""
+        # add the current page 0x6d to the current x
+        # return self.ram[0x6d] * 0x100 + self.ram[0x86]
+        return 1 if self.ram[0x007B] == 1 else -1
+
+    # @property
+    # def _left_x_position(self):
+    #     """Return the number of pixels from the left of the screen."""
+    #     # subtract the left x position 0x071c from the current x 0x86
+    #     return (self.ram[0x86] - self.ram[0x071c]) % 256
 
     @property
     def _y_pixel(self):
@@ -178,10 +180,10 @@ class AdventureIslandEnv(NESEnv):
         # invert the y pixel into the distance from the bottom of the screen
         return 255 - self._y_pixel
 
-    @property
-    def _player_status(self):
-        """Return the player status as a string."""
-        return _STATUS_MAP[self.ram[0x0756]]
+    # @property
+    # def _player_status(self):
+    #     """Return the player status as a string."""
+    #     return _STATUS_MAP[self.ram[0x0756]]
 
     @property
     def _player_state(self):
@@ -273,7 +275,7 @@ class AdventureIslandEnv(NESEnv):
     def _skip_change_area(self):
         """Skip change area animations by by running down timers."""
         change_area_timer = self.ram[0x06DE]
-        if change_area_timer > 1 and change_area_timer < 255:
+        if 1 < change_area_timer < 255:
             self.ram[0x06DE] = 1
 
     def _skip_occupied_states(self):
@@ -330,7 +332,7 @@ class AdventureIslandEnv(NESEnv):
     @property
     def _x_reward(self):
         """Return the reward based on left right movement between steps."""
-        _reward = self._x_position - self._x_position_last
+        _reward = self._direction * abs(self._x_position - self._x_position_last)
         self._x_position_last = self._x_position
         # TODO: check whether this is still necessary
         # resolve an issue where after death the x position resets. The x delta
@@ -417,11 +419,11 @@ class AdventureIslandEnv(NESEnv):
             life=self._life,
             score=self._score,
             stage=self._stage,
-            status=self._player_status,
+            # status=self._player_status,
             time=self._time,
             world=self._world,
-            x_pos=self._x_position,
-            y_pos=self._y_position,
+            # x_pos=self._x_position,
+            # y_pos=self._y_position,
         )
 
 
