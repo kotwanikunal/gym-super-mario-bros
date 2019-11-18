@@ -2,23 +2,23 @@
 import gym
 import numpy as np
 from nes_py.nes_env import SCREEN_HEIGHT, SCREEN_WIDTH
-from .smb_env import SuperMarioBrosEnv
+from .smb_env import AdventureIslandEnv
 
 
 class SuperMarioBrosRandomStagesEnv(gym.Env):
     """A Super Mario Bros. environment that randomly selects levels."""
 
     # relevant meta-data about the environment
-    metadata = SuperMarioBrosEnv.metadata
+    metadata = AdventureIslandEnv.metadata
 
     # the legal range of rewards for each step
-    reward_range = SuperMarioBrosEnv.reward_range
+    reward_range = AdventureIslandEnv.reward_range
 
     # observation space for the environment is static across all instances
-    observation_space = SuperMarioBrosEnv.observation_space
+    observation_space = AdventureIslandEnv.observation_space
 
     # action space is a bitmap of button press values for the 8 NES buttons
-    action_space = SuperMarioBrosEnv.action_space
+    action_space = AdventureIslandEnv.action_space
 
     def __init__(self, rom_mode='vanilla'):
         """
@@ -44,7 +44,7 @@ class SuperMarioBrosRandomStagesEnv(gym.Env):
                 # create the target as a tuple of the world and stage
                 target = (world, stage)
                 # create the environment with the given ROM mode
-                env = SuperMarioBrosEnv(rom_mode=rom_mode, target=target)
+                env = AdventureIslandEnv(rom_mode=rom_mode, target=target)
                 # add the environment to the stage list for this world
                 self.envs[-1].append(env)
         # create a placeholder for the current environment

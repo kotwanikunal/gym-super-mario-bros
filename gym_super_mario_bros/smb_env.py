@@ -1,4 +1,4 @@
-"""An OpenAI Gym environment for Super Mario Bros. and Lost Levels."""
+"""An OpenAI Gym environment for Adventure Island."""
 from collections import defaultdict
 from nes_py import NESEnv
 import numpy as np
@@ -11,22 +11,22 @@ _STATUS_MAP = defaultdict(lambda: 'fireball', {0:'small', 1: 'tall'})
 
 
 # a set of state values indicating that Mario is "busy"
-_BUSY_STATES = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x07]
+# _BUSY_STATES = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x07]
 
 
 # RAM addresses for enemy types on the screen
-_ENEMY_TYPE_ADDRESSES = [0x0016, 0x0017, 0x0018, 0x0019, 0x001A]
+# _ENEMY_TYPE_ADDRESSES = [0x0016, 0x0017, 0x0018, 0x0019, 0x001A]
 
 
 # enemies whose context indicate that a stage change will occur (opposed to an
 # enemy that implies a stage change wont occur -- i.e., a vine)
 # Bowser = 0x2D
 # Flagpole = 0x31
-_STAGE_OVER_ENEMIES = np.array([0x2D, 0x31])
+# _STAGE_OVER_ENEMIES = np.array([0x2D, 0x31])
 
 
-class SuperMarioBrosEnv(NESEnv):
-    """An environment for playing Super Mario Bros with OpenAI Gym."""
+class AdventureIslandEnv(NESEnv):
+    """An environment for playing Adventure Island with OpenAI Gym."""
 
     # the legal range of rewards for each step
     reward_range = (-15, 15)
@@ -47,11 +47,12 @@ class SuperMarioBrosEnv(NESEnv):
 
         """
         # decode the ROM path based on mode and lost levels flag
-        rom = rom_path(lost_levels, rom_mode)
+        rom = rom_path(rom_mode)
         # initialize the super object with the ROM path
-        super(SuperMarioBrosEnv, self).__init__(rom)
+        super(AdventureIslandEnv, self).__init__(rom)
         # set the target world, stage, and area variables
-        target = decode_target(target, lost_levels)
+        target = decode_target(target)
+
         self._target_world, self._target_stage, self._target_area = target
         # setup a variable to keep track of the last frames time
         self._time_last = 0
@@ -95,45 +96,46 @@ class SuperMarioBrosEnv(NESEnv):
     @property
     def _level(self):
         """Return the level of the game."""
-        return self.ram[0x075f] * 4 + self.ram[0x075c]
+        return self.ram[0x00D0] * 4 + self.ram[0x00D1]
 
     @property
     def _world(self):
         """Return the current world (1 to 8)."""
-        return self.ram[0x075f] + 1
+        return self.ram[0x00D0] + 1
 
     @property
     def _stage(self):
         """Return the current stage (1 to 4)."""
-        return self.ram[0x075c] + 1
+        return self.ram[0x00D1] + 1
 
-    @property
-    def _area(self):
-        """Return the current area number (1 to 5)."""
-        return self.ram[0x0760] + 1
+    # @property
+    # def _area(self):
+    #     """Return the current area number (1 to 5)."""
+    #     return self.ram[0x0760] + 1
 
     @property
     def _score(self):
         """Return the current player score (0 to 999990)."""
         # score is represented as a figure with 6 10's places
-        return self._read_mem_range(0x07de, 6)
+        return self._read_mem_range(0x07D8, 5)*10
 
     @property
     def _time(self):
         """Return the time left (0 to 999)."""
         # time is represented as a figure with 3 10's places
-        return self._read_mem_range(0x07f8, 3)
+        # return self._read_mem_range(0x07f8, 3)
+        return self.ram[0x07D3]
 
-    @property
-    def _coins(self):
-        """Return the number of coins collected (0 to 99)."""
-        # coins are represented as a figure with 2 10's places
-        return self._read_mem_range(0x07ed, 2)
+    # @property
+    # def _coins(self):
+    #     """Return the number of coins collected (0 to 99)."""
+    #     # coins are represented as a figure with 2 10's places
+    #     return self._read_mem_range(0x07ed, 2)
 
     @property
     def _life(self):
         """Return the number of remaining lives."""
-        return self.ram[0x075a]
+        return self.ram[0x07D2]
 
     @property
     def _x_position(self):
@@ -206,12 +208,13 @@ class SuperMarioBrosEnv(NESEnv):
     @property
     def _is_dying(self):
         """Return True if Mario is in dying animation, False otherwise."""
-        return self._player_state == 0x0b or self._y_viewport > 1
+        # return self._player_state == 0x0b or self._y_viewport > 1
+        return self.ram[0x0571] == 00
 
     @property
     def _is_dead(self):
         """Return True if Mario is dead, False otherwise."""
-        return self._player_state == 0x06
+        return self.ram[0x003] == 86
 
     @property
     def _is_game_over(self):
@@ -223,43 +226,45 @@ class SuperMarioBrosEnv(NESEnv):
     @property
     def _is_busy(self):
         """Return boolean whether Mario is busy with in-game garbage."""
-        return self._player_state in _BUSY_STATES
+        # return self._player_state in _BUSY_STATES
+        return self.ram[0x0003] == 0x0C
 
-    @property
-    def _is_world_over(self):
-        """Return a boolean determining if the world is over."""
-        # 0x0770 contains GamePlay mode:
-        # 0 => Demo
-        # 1 => Standard
-        # 2 => End of world
-        return self.ram[0x0770] == 2
+    # @property
+    # def _is_world_over(self):
+    #     """Return a boolean determining if the world is over."""
+    #     # 0x0770 contains GamePlay mode:
+    #     # 0 => Demo
+    #     # 1 => Standard
+    #     # 2 => End of world
+    #     return self.ram[0x0770] == 2
 
     @property
     def _is_stage_over(self):
         """Return a boolean determining if the level is over."""
         # iterate over the memory addresses that hold enemy types
-        for address in _ENEMY_TYPE_ADDRESSES:
-            # check if the byte is either Bowser (0x2D) or a flag (0x31)
-            # this is to prevent returning true when Mario is using a vine
-            # which will set the byte at 0x001D to 3
-            if self.ram[address] in _STAGE_OVER_ENEMIES:
-                # player float state set to 3 when sliding down flag pole
-                return self.ram[0x001D] == 3
+        # for address in _ENEMY_TYPE_ADDRESSES:
+        #     # check if the byte is either Bowser (0x2D) or a flag (0x31)
+        #     # this is to prevent returning true when Mario is using a vine
+        #     # which will set the byte at 0x001D to 3
+        #     if self.ram[address] in _STAGE_OVER_ENEMIES:
+        #         # player float state set to 3 when sliding down flag pole
+        if self.ram[0x0003] in [0x04, 86]:
+            return True
 
         return False
 
     @property
     def _flag_get(self):
         """Return a boolean determining if the agent reached a flag."""
-        return self._is_world_over or self._is_stage_over
+        return self._is_stage_over
 
     # MARK: RAM Hacks
 
-    def _write_stage(self):
-        """Write the stage data to RAM to overwrite loading the next stage."""
-        self.ram[0x075f] = self._target_world - 1
-        self.ram[0x075c] = self._target_stage - 1
-        self.ram[0x0760] = self._target_area - 1
+    # def _write_stage(self):
+    #     """Write the stage data to RAM to overwrite loading the next stage."""
+    #     self.ram[0x075f] = self._target_world - 1
+    #     self.ram[0x075c] = self._target_stage - 1
+    #     self.ram[0x0760] = self._target_area - 1
 
     def _runout_prelevel_timer(self):
         """Force the pre-level timer to 0 to skip frames during a death."""
@@ -273,7 +278,8 @@ class SuperMarioBrosEnv(NESEnv):
 
     def _skip_occupied_states(self):
         """Skip occupied states by running out a timer and skipping frames."""
-        while self._is_busy or self._is_world_over:
+        # while self._is_busy or self._is_world_over:
+        while self._is_busy:
             self._runout_prelevel_timer()
             self._frame_advance(0)
 
@@ -286,9 +292,11 @@ class SuperMarioBrosEnv(NESEnv):
         while self._time == 0:
             # press and release the start button
             self._frame_advance(8)
+
             # if we're in the single stage, environment, write the stage data
-            if self.is_single_stage_env:
-                self._write_stage()
+            # if self.is_single_stage_env:
+                # self._write_stage()
+
             self._frame_advance(0)
             # run-out the prelevel timer to skip the animation
             self._runout_prelevel_timer()
@@ -300,22 +308,22 @@ class SuperMarioBrosEnv(NESEnv):
             self._frame_advance(8)
             self._frame_advance(0)
 
-    def _skip_end_of_world(self):
-        """Skip the cutscene that plays at the end of a world."""
-        if self._is_world_over:
-            # get the current game time to reference
-            time = self._time
-            # loop until the time is different
-            while self._time == time:
-                # frame advance with NOP
-                self._frame_advance(0)
+    # def _skip_end_of_world(self):
+    #     """Skip the cutscene that plays at the end of a world."""
+    #     if self._is_world_over:
+    #         # get the current game time to reference
+    #         time = self._time
+    #         # loop until the time is different
+    #         while self._time == time:
+    #             # frame advance with NOP
+    #             self._frame_advance(0)
 
-    def _kill_mario(self):
-        """Skip a death animation by forcing Mario to death."""
-        # force Mario's state to dead
-        self.ram[0x000e] = 0x06
-        # step forward one frame
-        self._frame_advance(0)
+    # def _kill_mario(self):
+    #     """Skip a death animation by forcing Mario to death."""
+    #     # force Mario's state to dead
+    #     self.ram[0x000e] = 0x06
+    #     # step forward one frame
+    #     self._frame_advance(0)
 
     # MARK: Reward Function
 
@@ -379,11 +387,13 @@ class SuperMarioBrosEnv(NESEnv):
         if done:
             return
         # if mario is dying, then cut to the chase and kill hi,
-        if self._is_dying:
-            self._kill_mario()
+        # if self._is_dying:
+        #     self._kill_mario()
         # skip world change scenes (must call before other skip methods)
-        if not self.is_single_stage_env:
-            self._skip_end_of_world()
+
+        # if not self.is_single_stage_env:
+        #     self._skip_end_of_world()
+
         # skip area change (i.e. enter pipe, flag get, etc.)
         self._skip_change_area()
         # skip occupied states like the black screen between lives that shows
@@ -403,7 +413,6 @@ class SuperMarioBrosEnv(NESEnv):
     def _get_info(self):
         """Return the info after a step occurs"""
         return dict(
-            coins=self._coins,
             flag_get=self._flag_get,
             life=self._life,
             score=self._score,
@@ -417,4 +426,4 @@ class SuperMarioBrosEnv(NESEnv):
 
 
 # explicitly define the outward facing API of this module
-__all__ = [SuperMarioBrosEnv.__name__]
+__all__ = [AdventureIslandEnv.__name__]

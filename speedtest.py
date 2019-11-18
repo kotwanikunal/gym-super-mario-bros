@@ -1,6 +1,6 @@
-from gym_super_mario_bros import SuperMarioBrosEnv
+from gym_super_mario_bros import AdventureIslandEnv
 import tqdm
-env = SuperMarioBrosEnv()
+env = AdventureIslandEnv()
 
 done = True
 
